@@ -8,22 +8,22 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "http://localhost:3000") // Update with your frontend URL
+@CrossOrigin(origins = "http://localhost:3000",
+        methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS},
+        allowedHeaders = "*")// Update with your frontend URL
 public class PropertyController {
 
     @Autowired
     private PropertyService propertyService;
 
     // Add Property
+
     @PostMapping("/add-property")
-    public ResponseEntity<?> addProperty(@RequestBody Property property) {
+    public ResponseEntity<?> addProperty(@RequestBody Property property, @RequestParam Long userId) {
         try {
             if (property.getName() == null || property.getName().trim().length() <= 2) {
                 Map<String, Object> errorResponse = new HashMap<>();
@@ -33,7 +33,7 @@ public class PropertyController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
             }
 
-            Property savedProperty = propertyService.addProperty(property);
+            Property savedProperty = propertyService.addProperty(property,userId);
 
             Map<String, Object> successResponse = new HashMap<>();
             successResponse.put("status", "success");
@@ -64,17 +64,26 @@ public class PropertyController {
             @RequestParam(required = false) String propertyType,
             @RequestParam(required = false) String details,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "9") int limit) {
+            @RequestParam(defaultValue = "9") int limit,
+            @RequestHeader("userId") Long userId){
 
         try {
             // Create Pageable object (Spring Data JPA requires 0-indexed pages)
             Pageable pageable = PageRequest.of(page - 1, limit);
 
-            // Fetch filtered and paginated properties
-            Page<Property> propertiesPage = propertyService.getFilteredProperties(
-                    city, state, locality, country, pincode,
-                    minCost, maxCost, minArea, maxArea,
-                    propertyType, details, pageable);
+            // Filter properties for builders
+            Page<Property> propertiesPage;
+            if (userId != null) {
+                propertiesPage = propertyService.getPropertiesByUserId(userId, city, state, locality, country, pincode,
+                        minCost, maxCost, minArea, maxArea, propertyType, details, pageable);
+            } else {
+                // Fetch all properties for admins or without filtering by userId
+                // Fetch filtered and paginated properties
+                 propertiesPage = propertyService.getFilteredProperties(
+                        city, state, locality, country, pincode,
+                        minCost, maxCost, minArea, maxArea,
+                        propertyType, details, pageable);
+            }
 
             if (propertiesPage.isEmpty()) {
                 Map<String, Object> emptyResponse = new HashMap<>();
@@ -143,10 +152,39 @@ public class PropertyController {
         }
     }
     // Delete Property
+
+/*
     @DeleteMapping("/delete-property/{id}")
-    public ResponseEntity<?> deleteProperty(@PathVariable Long id) {
+    public ResponseEntity<?> deleteProperty(@PathVariable Long id, @RequestParam Long userId) {
         try {
-            boolean isDeleted = propertyService.deletePropertyById(id);
+            boolean isDeleted = propertyService.deletePropertyById(id,userId);
+            if (isDeleted) {
+                Map<String, Object> successResponse = new HashMap<>();
+                successResponse.put("status", "success");
+                successResponse.put("message", "Property deleted successfully.");
+                successResponse.put("httpCode", HttpStatus.OK.value());
+                return ResponseEntity.ok(successResponse);
+            } else {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("status", "failure");
+                errorResponse.put("message", "Property not found.");
+                errorResponse.put("httpCode", HttpStatus.NOT_FOUND.value());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "failure");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("httpCode", HttpStatus.INTERNAL_SERVER_ERROR.value());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+*/
+
+    @PostMapping("/delete-property/{id}")
+    public ResponseEntity<?> deleteProperty(@PathVariable Long id, @RequestParam Long userId) {
+        try {
+            boolean isDeleted = propertyService.deletePropertyById(id,userId);
             if (isDeleted) {
                 Map<String, Object> successResponse = new HashMap<>();
                 successResponse.put("status", "success");
@@ -169,11 +207,13 @@ public class PropertyController {
         }
     }
 
+
     // Edit Property
-    @PutMapping("/edit-property/{id}")
-    public ResponseEntity<?> editProperty(@PathVariable Long id, @RequestBody Property updatedProperty) {
+
+    @PostMapping("/edit-property/{id}")
+    public ResponseEntity<?> editProperty(@PathVariable Long id, @RequestBody Property updatedProperty, @RequestParam Long userId) {
         try {
-            Property editedProperty = propertyService.editPropertyById(id, updatedProperty);
+            Property editedProperty = propertyService.editPropertyById(id, updatedProperty,userId);
             if (editedProperty != null) {
                 Map<String, Object> successResponse = new HashMap<>();
                 successResponse.put("status", "success");

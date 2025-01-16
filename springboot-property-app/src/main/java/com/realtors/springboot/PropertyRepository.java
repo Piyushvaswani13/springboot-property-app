@@ -14,6 +14,8 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
 
     List<Property> findByAddedById(Long userId);
 
+    List<Property> findByCreatedBy(User createdBy);
+
     @Query("SELECT p FROM Property p WHERE " +
             "(:city IS NULL OR p.city = :city) AND " +
             "(:state IS NULL OR p.state = :state) AND " +
@@ -65,6 +67,37 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             @Param("query") String query,
             @Param("category") String category,
             Pageable pageable);
+
+
+
+
+    @Query("SELECT p FROM Property p WHERE " +
+            "( p.createdBy.id = :userId OR (:role != 'BUILDER'))" +
+            "AND (:city IS NULL OR p.city = :city) " +
+            "AND (:state IS NULL OR p.state = :state) " +
+            "AND (:locality IS NULL OR p.locality = :locality) " +
+            "AND (:country IS NULL OR p.country = :country) " +
+            "AND (:pincode IS NULL OR p.pincode = :pincode) " +
+            "AND (:minCost IS NULL OR p.cost >= :minCost) " +
+            "AND (:maxCost IS NULL OR p.cost <= :maxCost) " +
+            "AND (:minArea IS NULL OR p.area >= :minArea) " +
+            "AND (:maxArea IS NULL OR p.area <= :maxArea) " +
+            "AND (:propertyType IS NULL OR p.type = :propertyType) " +
+            "AND (:details IS NULL OR p.details LIKE %:details%)")
+    Page<Property> findFilteredPropertiesByUserId(@Param("userId") Long userId,
+                                                  @Param("role") String role,
+                                                  @Param("city") String city,
+                                                  @Param("state") String state,
+                                                  @Param("locality") String locality,
+                                                  @Param("country") String country,
+                                                  @Param("pincode") String pincode,
+                                                  @Param("minCost") Integer minCost,
+                                                  @Param("maxCost") Integer maxCost,
+                                                  @Param("minArea") Integer minArea,
+                                                  @Param("maxArea") Integer maxArea,
+                                                  @Param("propertyType") String propertyType,
+                                                  @Param("details") String details,
+                                                  Pageable pageable);
 
 
     void deleteById(Long id);
